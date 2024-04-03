@@ -1,3 +1,3 @@
 # KID-Farhan
 
-Code is messy. Please contact for understanding.
+Codes are messy. Please contact for understanding.
