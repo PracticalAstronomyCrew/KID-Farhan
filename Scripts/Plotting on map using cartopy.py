@@ -1,14 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[26]:
-
-
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from cartopy.io import img_tiles
 
-# Data
+# ---- DATA ---- #
+
+# List of locations with latitude, longitude, and percent change in brightness (or darkening)
 locations = [
     {"Site": "Nes", "Latitude": 53.449, "Longitude": 5.775, "Percent_change": 7.1954},
     {"Site": "Boerakker", "Latitude": 53.187, "Longitude": 6.329, "Percent_change": -12.0503},
@@ -39,23 +35,46 @@ locations = [
     {"Site": "Moddergat", "Latitude": 53.40656, "Longitude": 6.06985, "Percent_change": -6.936}
 ]
 
-# Plot the map
-plt.figure(figsize=(10, 8))
+# ---- FUNCTIONS ---- #
 
-# Create a satellite basemap
-request = img_tiles.GoogleTiles(style='satellite')
-ax = plt.axes(projection=request.crs)
+def create_map(locations):
+    """
+    Create a map using Cartopy, displaying locations with color-coded markers based on percent change.
 
-# Add satellite basemap
-ax.add_image(request, 9)
+    Args:
+        locations (list of dict): List of location data with site name, latitude, longitude, and percent change.
+    """
+    # Create a figure and axis with satellite imagery
+    plt.figure(figsize=(10, 8))
+    request = img_tiles.GoogleTiles(style='satellite')
+    ax = plt.axes(projection=request.crs)
+    ax.add_image(request, 9)
 
-# Plot each point with color based on percent value
-for location in locations:
-    ax.plot(location["Longitude"], location["Latitude"], 'o', markersize=abs(location["Percent_change"]), transform=ccrs.PlateCarree(), color='blue' if location["Percent_change"] >= 0 else 'red', label='Darkening' if location["Percent_change"] >= 0 else 'Brightening')
+    # Plot each location with a marker size proportional to the absolute percent change
+    for location in locations:
+        percent_change = location["Percent_change"]
+        color = 'blue' if percent_change >= 0 else 'red'  # Blue for positive, red for negative change
+        
+        # Plot the point using latitude and longitude in PlateCarree projection
+        ax.plot(
+            location["Longitude"],
+            location["Latitude"],
+            'o',
+            markersize=abs(percent_change),
+            transform=ccrs.PlateCarree(),
+            color=color
+        )
 
-# Show legend
-#plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-plt.savefig('car.png',dpi=300)
-# Show the plot
-plt.show()
+    # Add title and gridlines for better clarity
+    ax.set_title("Location Percent Changes (Darkening/Brightening)", fontsize=16)
+    ax.gridlines(draw_labels=True, color='gray', linestyle='--')
+
+    # Save the plot to a file
+    plt.savefig('map_output.png', dpi=300)
+    plt.show()
+
+# ---- EXECUTION ---- #
+
+if __name__ == "__main__":
+    create_map(locations)
 
