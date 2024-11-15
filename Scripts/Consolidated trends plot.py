@@ -50,19 +50,22 @@ hours_and_minutes_list = [
 ]
 date_lists = filter_cloudy_conditions(result_df, hours_and_minutes_list)
 
-# Define the filtering function for sun and moon altitudes
+# Define the filtering function for sun and moon altitudes and moon phase
 def hoogte(a, b, c, d, e):
     home = ephem.Observer()
-    home.lat, home.lon = str(locations_dict[f"{selectedlocation}"][0]), str(locations_dict[f"{selectedlocation}"][1])
+    home.lat, home.lon = "36.824167", "30.335556"
     try:
         home.date = datetime(a, b, c, d, e, 0)
     except ValueError:
         return None, None
     sun = ephem.Sun()
-    moon = ephem.Moon()
     sun.compute(home)
+    moon = ephem.Moon()
     moon.compute(home)
-    return round(float(sun.alt) * 57.2957795), round(float(moon.alt) * 57.2957795)
+    moon_phase = ephem.Moon(home)
+    illuminated_fraction = moon_phase.moon_phase
+    moon_phase_percent = illuminated_fraction * 100
+    return round(float(sun.alt) * 57.2957795), round(float(moon.alt) * 57.2957795), round(moon_phase_percent,2)
 
 # Define the function to filter sun and moon altitudes
 def filter_sun_moon(df):
@@ -71,9 +74,17 @@ def filter_sun_moon(df):
         year, month, day, hour, minute = int(row["Year"]), int(row["Month"]), int(row["Day"]), int(row["Hour"]), int(row["Minute"])
         sun_altitude, moon_altitude = hoogte(year, month, day, hour, minute)
         if sun_altitude is not None and moon_altitude is not None:
-            if sun_altitude < -18 and moon_altitude < -3:
-                filtered_rows.append(row)
-    return pd.DataFrame(filtered_rows)
+            if sun_altitude < -18:
+                if 0 <= moon_altitude <= 5:
+                    moon_phase_threshold = 50 - (8*moon_altitude)
+                    if moon_phase < moon_phase_threshold:
+                        filtered_rows.append(row)
+                if -3 <= moon_altitude < 0:
+                    moon_phase_threshold = (150-(50*moon_altitude))/3
+                    if moon_phase < moon_phase_threshold:
+                        filtered_rows.append(row)
+                if moon_altitude < -3:
+                    filtered_rows.append(row)
 
 # Process .dat files and filter based on sun and moon altitudes
 folder_path = r"C:\Users\Farhan\Desktop\SQM Data\\" + selectedlocation
@@ -83,7 +94,8 @@ for filename in os.listdir(folder_path):
     if filename.endswith(".dat"):
         file_path = os.path.join(folder_path, filename)
         df = pd.read_csv(file_path, delimiter=";", skiprows=35,
-                         names=["Date and Time", "Date and Time2", "Temperature", "Number", "Hz", "Magnitude"])
+                         names=["Date and Time", "Date and Time2", "Temperature", "Number", "Hz", "Magnitude"]
+                        )
         dfs.append(df)
 
 # Clean and process each DataFrame
@@ -141,7 +153,9 @@ for specified_hour in hours:
     magnitude_std_with_gaps[:] = np.nan
     magnitude_std_with_gaps[:len(magnitude_std_values)] = magnitude_std_values
 
-    plt.errorbar(date_range, hourly_mean, yerr=magnitude_std_with_gaps, fmt='o', color='darkblue', label='Median Linear Magnitude')
+    plt.errorbar(
+        date_range, hourly_mean, yerr=magnitude_std_with_gaps, fmt='o', color='darkblue', label='Median Linear Magnitude'
+    )
 
     non_nan_indices = ~np.isnan(hourly_mean)
     X = np.arange(len(date_range))[non_nan_indices]
@@ -150,7 +164,9 @@ for specified_hour in hours:
     reg = LinearRegression().fit(X.reshape(-1, 1), y)
     trend = reg.predict(np.arange(len(date_range)).reshape(-1, 1))
 
-    plt.plot(date_range[non_nan_indices], trend[non_nan_indices], linestyle='--', color='red', label=f'Trend Line')
+    plt.plot(
+        date_range[non_nan_indices], trend[non_nan_indices], linestyle='--', color='red', label=f'Trend Line'
+    )
 
     plt.ylim(0,2)
     plt.xticks(fontsize=14, rotation=45)
